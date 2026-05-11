@@ -8,6 +8,17 @@ argument-hint: [wiki-directory]
 
 Analyzes a Karpathy-pattern LLM wiki — a three-layer knowledge base with raw sources, wiki markdown, and a schema file — and produces an interactive knowledge graph dashboard.
 
+
+## Runtime Environment (IMPORTANT)
+
+All runtime dependencies (`node`, `pnpm`, `python3`) are pre-installed inside the `understand-anything` Docker container. Before running any `node`, `pnpm`, or `python3` command, check if the tool exists on the host (`which node`). If not, route through Docker:
+
+```bash
+docker exec -w /workspace understand-anything <command>
+```
+
+Host project directory is mounted at `/workspace` inside the container. Replace host paths accordingly.
+
 ## What It Detects
 
 The **Karpathy LLM wiki pattern** (see https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):

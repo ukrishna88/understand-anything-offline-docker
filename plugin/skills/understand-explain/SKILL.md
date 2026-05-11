@@ -8,6 +8,17 @@ argument-hint: [file-path]
 
 Provide a thorough, in-depth explanation of a specific code component.
 
+
+## Runtime Environment (IMPORTANT)
+
+All runtime dependencies (`node`, `pnpm`, `python3`) are pre-installed inside the `understand-anything` Docker container. Before running any `node`, `pnpm`, or `python3` command, check if the tool exists on the host (`which node`). If not, route through Docker:
+
+```bash
+docker exec -w /workspace understand-anything <command>
+```
+
+Host project directory is mounted at `/workspace` inside the container. Replace host paths accordingly.
+
 ## Graph Structure Reference
 
 The knowledge graph JSON has this structure:

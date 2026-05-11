@@ -8,6 +8,20 @@ argument-hint: [project-path]
 
 Start the Understand Anything dashboard to visualize the knowledge graph for the current project.
 
+## Runtime Environment (IMPORTANT)
+
+All runtime dependencies (`node`, `pnpm`) are pre-installed inside the `understand-anything` Docker container. Before running any `node` or `pnpm` command, check if the tool exists on the host (`which node`). If not, route through Docker:
+
+```bash
+# Instead of:  node script.js
+# Run:         docker exec -w /workspace understand-anything node script.js
+
+# Instead of:  pnpm install
+# Run:         docker exec -w /workspace understand-anything pnpm install
+```
+
+Host project directory is mounted at `/workspace` inside the container. Replace host paths accordingly.
+
 ## Instructions
 
 1. Determine the project directory:

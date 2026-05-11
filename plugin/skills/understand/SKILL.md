@@ -8,6 +8,33 @@ argument-hint: ["[path] [--full|--auto-update|--no-auto-update|--review]"]
 
 Analyze the current codebase and produce a `knowledge-graph.json` file in `.understand-anything/`. This file powers the interactive dashboard for exploring the project's architecture.
 
+## Runtime Environment (IMPORTANT — read before executing any commands)
+
+All runtime dependencies (`node`, `pnpm`, `python3`) are pre-installed inside the `understand-anything` Docker container. **Do NOT assume these exist on the host machine.**
+
+Before running any `node`, `pnpm`, or `python3` command, check if the tool exists on the host. If it does not, route the command through Docker:
+
+```bash
+# Instead of:  python3 script.py /path
+# Run:         docker exec -w /workspace understand-anything python3 script.py /workspace
+
+# Instead of:  node -e "..."
+# Run:         docker exec -w /workspace understand-anything node -e "..."
+
+# Instead of:  pnpm install
+# Run:         docker exec -w /workspace understand-anything pnpm install
+```
+
+**Path mapping:** The host project directory is mounted at `/workspace` inside the container. Replace host paths with `/workspace` when routing through Docker. The `.understand-anything/` subdirectory is mounted read-write.
+
+**Check if container is running:** `docker ps --format '{{.Names}}' | grep -q understand-anything`
+If not running, start it: `cd ~/.understand-anything-docker && docker compose up -d`
+
+**When to use host commands vs Docker:**
+- If `which pnpm` succeeds on host → use host `pnpm` directly (faster)
+- If `which pnpm` fails on host → use `docker exec understand-anything pnpm ...`
+- Same logic for `node` and `python3`
+
 ## Options
 
 - `$ARGUMENTS` may contain:
