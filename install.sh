@@ -5,9 +5,9 @@ set -e
 # Understand Anything — Offline Installer
 # Sandboxed Docker dashboard + multi-platform skill installation
 #
-# Prerequisites: Docker Desktop only.
-# No Node.js, pnpm, or Python required on host.
-# Everything runs inside Docker or is just file copies + symlinks.
+# Prerequisite: Docker Desktop only.
+# All runtime dependencies (Node.js, pnpm, Python3) are
+# pre-installed inside the Docker container.
 # ─────────────────────────────────────────────────────────────
 
 DOCKER_IMAGE="understand-anything-dashboard:latest"
@@ -84,10 +84,10 @@ echo "  Loading image (this may take a minute)..."
 gunzip -c "$IMAGE_PATH" | docker load
 echo "  Image loaded."
 
-# ── Step 3: Setup dashboard launcher ─────────────────────
+# ── Step 3: Setup dashboard + exec helpers ───────────────
 
 echo ""
-echo "[3/4] Setting up dashboard launcher..."
+echo "[3/4] Setting up dashboard and command-line tools..."
 
 mkdir -p "$COMPOSE_DIR"
 
@@ -106,6 +106,7 @@ services:
     restart: unless-stopped
 COMPOSEFILE
 
+# ── Dashboard launcher ──
 cat > "$COMPOSE_DIR/start-dashboard.sh" << 'LAUNCHER'
 #!/bin/bash
 set -e
@@ -165,18 +166,66 @@ LAUNCHER
 
 chmod +x "$COMPOSE_DIR/start-dashboard.sh"
 
-# Install the command
+# ── ua-exec: run any command inside the Docker container ──
+cat > "$COMPOSE_DIR/ua-exec.sh" << 'UAEXEC'
+#!/bin/bash
+#
+# ua-exec — Run commands inside the understand-anything Docker container.
+# All dependencies (node, pnpm, python3, git) are pre-installed in the container.
+#
+# Usage:
+#   ua-exec python3 /opt/understand-anything/plugin/skills/understand/merge-batch-graphs.py /workspace
+#   ua-exec node -e "console.log('hello')"
+#   ua-exec pnpm --version
+#
+# The container must be running (start with: understand-dashboard /path/to/repo)
+
+if [ -z "$1" ]; then
+    echo "Usage: ua-exec <command> [args...]"
+    echo ""
+    echo "Runs a command inside the understand-anything Docker container."
+    echo "All dependencies (node, pnpm, python3) are pre-installed."
+    echo ""
+    echo "Examples:"
+    echo "  ua-exec node --version"
+    echo "  ua-exec python3 --version"
+    echo "  ua-exec pnpm --version"
+    exit 1
+fi
+
+if ! docker ps --format '{{.Names}}' | grep -q '^understand-anything$'; then
+    echo "ERROR: understand-anything container is not running."
+    echo "Start it first: understand-dashboard /path/to/your/repo"
+    exit 1
+fi
+
+docker exec -w /workspace understand-anything "$@"
+UAEXEC
+
+chmod +x "$COMPOSE_DIR/ua-exec.sh"
+
+# ── Install commands to PATH ──
+INSTALL_DIR=""
 if [ -w /usr/local/bin ]; then
-    ln -sf "$COMPOSE_DIR/start-dashboard.sh" /usr/local/bin/understand-dashboard
-    echo "  Command installed: understand-dashboard"
-elif [ -d "$HOME/.local/bin" ]; then
-    ln -sf "$COMPOSE_DIR/start-dashboard.sh" "$HOME/.local/bin/understand-dashboard"
-    echo "  Command installed: understand-dashboard (in ~/.local/bin/)"
+    INSTALL_DIR="/usr/local/bin"
 else
     mkdir -p "$HOME/.local/bin"
-    ln -sf "$COMPOSE_DIR/start-dashboard.sh" "$HOME/.local/bin/understand-dashboard"
-    echo "  Command installed: understand-dashboard (in ~/.local/bin/)"
-    echo "  NOTE: Add ~/.local/bin to your PATH if not already there."
+    INSTALL_DIR="$HOME/.local/bin"
+fi
+
+ln -sf "$COMPOSE_DIR/start-dashboard.sh" "$INSTALL_DIR/understand-dashboard"
+ln -sf "$COMPOSE_DIR/ua-exec.sh" "$INSTALL_DIR/ua-exec"
+
+echo "  Commands installed:"
+echo "    understand-dashboard  — Start the dashboard for a project"
+echo "    ua-exec               — Run commands inside the Docker container"
+
+if [ "$INSTALL_DIR" = "$HOME/.local/bin" ]; then
+    if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
+        echo ""
+        echo "  NOTE: Add ~/.local/bin to your PATH:"
+        echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+    fi
 fi
 
 # ── Step 4: Install AI coding tool skill ─────────────────
@@ -254,7 +303,7 @@ else
             echo "  Installing for: $PLATFORM"
             echo ""
 
-            # ── Copy plugin files (just files + symlinks, no build step) ──
+            # ── Copy plugin files ──
             echo "  Copying plugin files to: $PLUGIN_DIR"
             rm -rf "$PLUGIN_DIR"
             cp -r "$SKILL_SOURCE" "$PLUGIN_DIR"
@@ -298,43 +347,9 @@ else
             echo "    /understand-onboard      — Generate onboarding guide"
             echo "    /understand-domain       — Extract business domain flows"
             echo "    /understand-knowledge    — Analyze knowledge bases"
-
-            # ── Non-blocking prerequisite check ──
             echo ""
-            echo "  ── Host requirements for /understand ──"
-            echo ""
-            echo "  When you run /understand, your AI tool will execute"
-            echo "  commands on your machine. It needs these installed:"
-            echo ""
-
-            READY=true
-            if command -v node &>/dev/null; then
-                echo "    Node.js:  $(node -v)  (need >= 22)"
-            else
-                echo "    Node.js:  NOT FOUND — install from https://nodejs.org/"
-                READY=false
-            fi
-            if command -v pnpm &>/dev/null; then
-                echo "    pnpm:     $(pnpm -v)  (need >= 10)"
-            else
-                echo "    pnpm:     NOT FOUND — install with: npm install -g pnpm"
-                READY=false
-            fi
-            if command -v python3 &>/dev/null; then
-                echo "    Python3:  $(python3 --version | cut -d' ' -f2)"
-            else
-                echo "    Python3:  NOT FOUND — install from https://www.python.org/"
-                READY=false
-            fi
-
-            echo ""
-            if [ "$READY" = true ]; then
-                echo "  All prerequisites found. You're ready to run /understand."
-            else
-                echo "  WARNING: Some tools are missing. The dashboard works fine,"
-                echo "  but /understand will fail until you install the above."
-                echo "  (Or skip — just have a teammate generate the graph.)"
-            fi
+            echo "  All node/python/pnpm commands run inside the Docker"
+            echo "  container — nothing extra needed on your machine."
         fi
     else
         echo "  Skipped. You can still view dashboards generated by others."
@@ -347,23 +362,28 @@ echo ""
 echo "  Verifying installation..."
 echo ""
 
-# Check Docker image
 if docker image inspect "$DOCKER_IMAGE" &>/dev/null 2>&1; then
     echo "  Docker image:      loaded"
+    # Show what's inside the container
+    echo "  Container has:     $(docker run --rm --entrypoint sh $DOCKER_IMAGE -c 'echo "Node $(node -v), pnpm $(pnpm -v), Python $(python3 --version 2>&1 | cut -d" " -f2)"')"
 else
     echo "  Docker image:      MISSING"
 fi
 
-# Check launcher
 if [ -f "$COMPOSE_DIR/start-dashboard.sh" ]; then
     echo "  Dashboard command:  installed"
 else
     echo "  Dashboard command:  MISSING"
 fi
 
-# Check skill
+if [ -f "$COMPOSE_DIR/ua-exec.sh" ]; then
+    echo "  ua-exec command:    installed"
+else
+    echo "  ua-exec command:    MISSING"
+fi
+
 if [ -d "$PLUGIN_DIR/skills/understand" ]; then
-    echo "  Skill plugin:      installed ($PLUGIN_DIR)"
+    echo "  Skill plugin:      installed"
     for check_dir in \
         "$HOME/.claude/skills" \
         "$HOME/.cursor/skills" \
@@ -394,5 +414,10 @@ if [ -d "$PLUGIN_DIR/skills/understand" ]; then
     echo "    /understand"
     echo ""
 fi
-echo "  One image, any project. Switch repos anytime."
+echo "  Run commands inside the container:"
+echo "    ua-exec node --version"
+echo "    ua-exec python3 --version"
+echo "    ua-exec pnpm --version"
+echo ""
+echo "  One image, any project. Zero host dependencies."
 echo ""

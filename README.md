@@ -1,52 +1,50 @@
 # Understand Anything — Offline Installer
 
-A fully self-contained, offline package for visualizing codebase knowledge graphs. Includes a sandboxed Docker dashboard and skill files for 12 AI coding platforms.
+A fully self-contained, offline package for visualizing and generating codebase knowledge graphs. All runtime dependencies (Node.js, pnpm, Python3) are pre-installed inside the Docker container — your machine only needs Docker.
 
-**No external dependencies. No internet required after download. No third-party references at runtime.**
+**No host dependencies. No internet at runtime. No third-party references.**
+
+## How it works
+
+```
+Your laptop (only Docker needed)
+│
+├── understand-dashboard ~/project   ← starts the dashboard
+│     └── Docker container serves http://localhost:5173
+│
+├── ua-exec python3 ...              ← runs commands inside Docker
+│     └── Docker has Node.js 22, pnpm, Python3 pre-installed
+│
+└── /understand (in Claude/Cursor)   ← AI tool generates the graph
+      └── LLM reads files, runs ua-exec for scripts
+```
+
+## Prerequisite
+
+- **Docker Desktop** — [download](https://www.docker.com/products/docker-desktop/)
+
+That's it. Node.js, pnpm, Python3 are all inside the container.
 
 ## Supported Platforms
 
-| Platform | Skill Install Path | Status |
-|----------|-------------------|--------|
-| Claude Code | `~/.claude/skills/` | Tested |
-| Cursor | `~/.cursor/skills/` | Supported |
-| VS Code + GitHub Copilot | `~/.copilot/skills/` | Supported |
-| Copilot CLI | `~/.copilot/skills/` | Supported |
-| Codex | `~/.agents/skills/` | Supported |
-| Gemini CLI | `~/.agents/skills/` | Supported |
-| OpenCode | `~/.agents/skills/` | Supported |
-| Pi Agent | `~/.agents/skills/` | Supported |
-| Vibe CLI | `~/.agents/skills/` | Supported |
-| OpenClaw | `~/.openclaw/skills/` | Supported |
-| Antigravity | `~/.gemini/antigravity/skills/` | Supported |
-| Hermes | `~/.hermes/skills/` | Supported |
-
-All platforms get the same 8 skills and 9 agents. The installer handles the correct directory and symlink structure for each.
-
-## What's in this package
-
-| Component | Purpose | Required? |
-|-----------|---------|-----------|
-| Docker image (`.tar.gz`) | Sandboxed dashboard viewer (no internet at runtime) | Yes |
-| `plugin/` | Complete skill + agent + core files for all 12 platforms | Only if you generate graphs |
-| `install.sh` | Interactive installer with platform selection | Yes |
-
-## Prerequisites
-
-**To view dashboards (everyone):**
-- Docker Desktop — [download](https://www.docker.com/products/docker-desktop/)
-
-**To generate knowledge graphs (one person per team):**
-- Docker Desktop
-- Node.js >= 22 — [download](https://nodejs.org/)
-- pnpm >= 10 — `npm install -g pnpm`
-- Python 3 — [download](https://www.python.org/)
-
-These are needed because `/understand` tells your AI tool (Claude, Cursor, etc.) to run commands on your machine to parse and analyze source code. The install script checks and reports what's missing.
+| Platform | Skill Install Path |
+|----------|-------------------|
+| Claude Code | `~/.claude/skills/` |
+| Cursor | `~/.cursor/skills/` |
+| VS Code + GitHub Copilot | `~/.copilot/skills/` |
+| Copilot CLI | `~/.copilot/skills/` |
+| Codex | `~/.agents/skills/` |
+| Gemini CLI | `~/.agents/skills/` |
+| OpenCode | `~/.agents/skills/` |
+| Pi Agent | `~/.agents/skills/` |
+| Vibe CLI | `~/.agents/skills/` |
+| OpenClaw | `~/.openclaw/skills/` |
+| Antigravity | `~/.gemini/antigravity/skills/` |
+| Hermes | `~/.hermes/skills/` |
 
 ## Installation
 
-### 1. Download
+### 1. Download the Docker image
 
 From the [Releases](https://github.com/ukrishna88/understand-anything-offline-docker/releases) page, download:
 - `understand-anything-dashboard.tar.gz` (~193MB)
@@ -67,16 +65,31 @@ mv ~/Downloads/understand-anything-dashboard.tar.gz .
 The installer will:
 1. Verify Docker is running
 2. Load the Docker image (offline — from the `.tar.gz`)
-3. Install the `understand-dashboard` command
-4. Ask which AI coding platform you use (12 options)
-5. Install skills + agents for your platform
-6. Verify everything works
+3. Install `understand-dashboard` and `ua-exec` commands
+4. Optionally install skills for your AI coding platform
 
 ### 3. Done
 
 ```bash
 understand-dashboard /path/to/your/project
 ```
+
+## Commands installed
+
+| Command | Purpose |
+|---------|---------|
+| `understand-dashboard /path/to/repo` | Start the interactive dashboard |
+| `ua-exec <command>` | Run any command inside the Docker container |
+
+### ua-exec examples
+
+```bash
+ua-exec node --version       # Node.js 22 inside container
+ua-exec python3 --version    # Python 3 inside container
+ua-exec pnpm --version       # pnpm inside container
+```
+
+Your machine doesn't need any of these installed — they're all in Docker.
 
 ## Available Skills (after installation)
 
@@ -91,31 +104,6 @@ understand-dashboard /path/to/your/project
 | `/understand-domain` | Extract business domain flows and processes |
 | `/understand-knowledge` | Analyze Karpathy-pattern LLM wiki knowledge bases |
 
-## Usage
-
-### View a project's knowledge graph
-
-```bash
-understand-dashboard ~/Desktop/my-project
-# Opens at http://localhost:5173?token=...
-```
-
-### Switch between projects
-
-```bash
-cd ~/.understand-anything-docker && docker compose down
-understand-dashboard ~/Desktop/other-project
-```
-
-### Generate a knowledge graph
-
-In your AI coding tool (Claude Code, Cursor, Copilot, etc.), inside any project:
-```
-/understand
-```
-
-Commit the generated `.understand-anything/knowledge-graph.json` to git.
-
 ## Team Workflow
 
 ```
@@ -128,20 +116,9 @@ Developer B, C, D (Docker dashboard only):
   1. git pull
   2. understand-dashboard .
   3. Opens the URL in browser
-  4. Explores architecture, layers, guided tour
 ```
 
 Only one team member needs the skill. Everyone else just views.
-
-## What gets committed to project repos
-
-```
-your-project/
-  .understand-anything/
-    knowledge-graph.json     ← the graph data (~300KB)
-    meta.json                ← analysis timestamp
-    .understandignore        ← exclusion patterns
-```
 
 ## Security
 
@@ -154,9 +131,8 @@ your-project/
 | Dashboard auth | Random token per launch (in `docker logs`) |
 | Exposure | `localhost` only — not accessible from network |
 
-### Verify isolation
-
 ```bash
+# Verify isolation
 docker exec understand-anything node -e \
   "fetch('https://example.com',{signal:AbortSignal.timeout(3000)}).then(()=>console.log('HAS INTERNET')).catch(()=>console.log('SANDBOXED'))"
 # Prints: SANDBOXED
@@ -167,50 +143,30 @@ docker exec understand-anything node -e \
 For machines with zero internet:
 
 ```bash
-# On a connected machine — download everything once:
+# On a connected machine — download once:
 git clone https://github.com/ukrishna88/understand-anything-offline-docker.git
 cd understand-anything-offline-docker
 # Download .tar.gz from Releases
 
 # Transfer the entire folder via USB / file share
-
 # On the offline machine:
-cd understand-anything-offline-docker
 ./install.sh
-```
-
-## Adding to a second platform
-
-If you already installed for one platform and want to add another:
-
-```bash
-./install.sh
-# Say 'y' to skill installation, pick a different platform
-# The plugin root is shared — only new symlinks are created
 ```
 
 ## Uninstall
 
 ```bash
-# Stop and remove container + image
 cd ~/.understand-anything-docker && docker compose down
 docker rmi understand-anything-dashboard:latest
-
-# Remove all installed files
 rm -rf ~/.understand-anything-docker
 rm -rf ~/.understand-anything-plugin
-rm -f /usr/local/bin/understand-dashboard
-rm -f ~/.local/bin/understand-dashboard
-
+rm -f /usr/local/bin/understand-dashboard /usr/local/bin/ua-exec
+rm -f ~/.local/bin/understand-dashboard ~/.local/bin/ua-exec
 # Remove platform symlinks (whichever you installed)
-rm -rf ~/.claude/skills/understand*
-rm -rf ~/.claude/agents/*.md
-rm -rf ~/.cursor/skills/understand*
-rm -rf ~/.copilot/skills/understand*
-rm -rf ~/.agents/skills/understand*
-rm -rf ~/.openclaw/skills/understand-anything
-rm -rf ~/.gemini/antigravity/skills/understand-anything
-rm -rf ~/.hermes/skills/understand-anything
+rm -rf ~/.claude/skills/understand* ~/.claude/agents/*.md
+rm -rf ~/.cursor/skills/understand* ~/.copilot/skills/understand*
+rm -rf ~/.agents/skills/understand* ~/.openclaw/skills/understand-anything
+rm -rf ~/.gemini/antigravity/skills/understand-anything ~/.hermes/skills/understand-anything
 ```
 
 ## Troubleshooting
@@ -224,4 +180,5 @@ rm -rf ~/.hermes/skills/understand-anything
 | "No knowledge-graph.json" | Run `/understand` in your AI tool, or `git pull` |
 | Port 5173 in use | `PORT=5174 understand-dashboard /path/to/repo` |
 | Stale dashboard | Refresh browser — re-reads JSON on each load |
+| `ua-exec` fails | Make sure the container is running: `understand-dashboard /path/to/repo` |
 | `/understand` not found | Check symlinks: `ls -la ~/.claude/skills/` (or your platform path) |
