@@ -4,9 +4,10 @@ set -e
 # ─────────────────────────────────────────────────────────────
 # Understand Anything — Offline Installer
 # Sandboxed Docker dashboard + multi-platform skill installation
-# Supports: Claude Code, Cursor, VS Code Copilot, Codex,
-#           Gemini CLI, OpenCode, Pi Agent, Vibe, OpenClaw,
-#           Antigravity, Hermes
+#
+# Prerequisites: Docker Desktop only.
+# No Node.js, pnpm, or Python required on host.
+# Everything runs inside Docker or is just file copies + symlinks.
 # ─────────────────────────────────────────────────────────────
 
 DOCKER_IMAGE="understand-anything-dashboard:latest"
@@ -22,10 +23,12 @@ echo "======================================================"
 echo "  Understand Anything — Offline Installer"
 echo "======================================================"
 echo ""
+echo "  Prerequisite: Docker Desktop (that's it)"
+echo ""
 
 # ── Step 1: Check Docker ──────────────────────────────────
 
-echo "[1/5] Checking Docker..."
+echo "[1/4] Checking Docker..."
 
 if ! command -v docker &>/dev/null; then
     echo ""
@@ -47,7 +50,7 @@ echo "  Docker is running."
 # ── Step 2: Load Docker image ────────────────────────────
 
 echo ""
-echo "[2/5] Loading Docker image..."
+echo "[2/4] Loading Docker image..."
 
 IMAGE_PATH=""
 for candidate in "./$IMAGE_FILE" "$SCRIPT_DIR/$IMAGE_FILE"; do
@@ -84,7 +87,7 @@ echo "  Image loaded."
 # ── Step 3: Setup dashboard launcher ─────────────────────
 
 echo ""
-echo "[3/5] Setting up dashboard launcher..."
+echo "[3/4] Setting up dashboard launcher..."
 
 mkdir -p "$COMPOSE_DIR"
 
@@ -179,7 +182,7 @@ fi
 # ── Step 4: Install AI coding tool skill ─────────────────
 
 echo ""
-echo "[4/5] AI coding tool skill setup..."
+echo "[4/4] AI coding tool skill setup..."
 echo ""
 echo "  The Docker dashboard is VIEW-ONLY."
 echo "  The skill lets you GENERATE knowledge graphs via /understand."
@@ -208,98 +211,56 @@ else
         echo ""
         echo "  Which AI coding tool do you use?"
         echo ""
-        echo "    1)  Claude Code"
-        echo "    2)  Cursor"
-        echo "    3)  VS Code + GitHub Copilot"
-        echo "    4)  Copilot CLI"
-        echo "    5)  Codex"
-        echo "    6)  Gemini CLI"
-        echo "    7)  OpenCode"
-        echo "    8)  Pi Agent"
-        echo "    9)  Vibe CLI"
-        echo "    10) OpenClaw"
-        echo "    11) Antigravity"
-        echo "    12) Hermes"
+        echo "     1)  Claude Code"
+        echo "     2)  Cursor"
+        echo "     3)  VS Code + GitHub Copilot"
+        echo "     4)  Copilot CLI"
+        echo "     5)  Codex"
+        echo "     6)  Gemini CLI"
+        echo "     7)  OpenCode"
+        echo "     8)  Pi Agent"
+        echo "     9)  Vibe CLI"
+        echo "    10)  OpenClaw"
+        echo "    11)  Antigravity"
+        echo "    12)  Hermes"
         echo ""
-        read -p "  Select [1-12]: " PLATFORM_CHOICE </dev/tty
+        read -p "  Select [1-12] and press Enter: " PLATFORM_CHOICE </dev/tty
 
-        case "$PLATFORM_CHOICE" in
-            1)  PLATFORM="claude"     ; SKILL_TARGET="$HOME/.claude/skills"     ; AGENT_TARGET="$HOME/.claude/agents"     ; LINK_STYLE="per-skill" ;;
-            2)  PLATFORM="cursor"     ; SKILL_TARGET="$HOME/.cursor/skills"     ; AGENT_TARGET="$HOME/.cursor/agents"     ; LINK_STYLE="per-skill" ;;
-            3)  PLATFORM="vscode"     ; SKILL_TARGET="$HOME/.copilot/skills"    ; AGENT_TARGET="$HOME/.copilot/agents"    ; LINK_STYLE="per-skill" ;;
-            4)  PLATFORM="copilot"    ; SKILL_TARGET="$HOME/.copilot/skills"    ; AGENT_TARGET="$HOME/.copilot/agents"    ; LINK_STYLE="per-skill" ;;
-            5)  PLATFORM="codex"      ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
-            6)  PLATFORM="gemini"     ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
-            7)  PLATFORM="opencode"   ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
-            8)  PLATFORM="pi"         ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
-            9)  PLATFORM="vibe"       ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
-            10) PLATFORM="openclaw"   ; SKILL_TARGET="$HOME/.openclaw/skills"   ; AGENT_TARGET=""                         ; LINK_STYLE="folder"    ;;
-            11) PLATFORM="antigravity"; SKILL_TARGET="$HOME/.gemini/antigravity/skills"; AGENT_TARGET=""                  ; LINK_STYLE="folder"    ;;
-            12) PLATFORM="hermes"     ; SKILL_TARGET="$HOME/.hermes/skills"     ; AGENT_TARGET=""                         ; LINK_STYLE="folder"    ;;
-            *)
-                echo "  Invalid choice. Skipping skill installation."
-                echo "  Dashboard still works for viewing."
-                PLATFORM=""
-                ;;
-        esac
+        # Validate input
+        if ! [[ "$PLATFORM_CHOICE" =~ ^[0-9]+$ ]] || [ "$PLATFORM_CHOICE" -lt 1 ] || [ "$PLATFORM_CHOICE" -gt 12 ]; then
+            echo ""
+            echo "  Invalid choice: '$PLATFORM_CHOICE'"
+            echo "  Skipping skill installation. Dashboard still works."
+            PLATFORM=""
+        else
+            case "$PLATFORM_CHOICE" in
+                1)  PLATFORM="Claude Code"        ; SKILL_TARGET="$HOME/.claude/skills"                ; AGENT_TARGET="$HOME/.claude/agents"  ; LINK_STYLE="per-skill" ;;
+                2)  PLATFORM="Cursor"              ; SKILL_TARGET="$HOME/.cursor/skills"                ; AGENT_TARGET="$HOME/.cursor/agents"  ; LINK_STYLE="per-skill" ;;
+                3)  PLATFORM="VS Code + Copilot"   ; SKILL_TARGET="$HOME/.copilot/skills"               ; AGENT_TARGET="$HOME/.copilot/agents" ; LINK_STYLE="per-skill" ;;
+                4)  PLATFORM="Copilot CLI"         ; SKILL_TARGET="$HOME/.copilot/skills"               ; AGENT_TARGET="$HOME/.copilot/agents" ; LINK_STYLE="per-skill" ;;
+                5)  PLATFORM="Codex"               ; SKILL_TARGET="$HOME/.agents/skills"                ; AGENT_TARGET="$HOME/.agents/agents"  ; LINK_STYLE="per-skill" ;;
+                6)  PLATFORM="Gemini CLI"          ; SKILL_TARGET="$HOME/.agents/skills"                ; AGENT_TARGET="$HOME/.agents/agents"  ; LINK_STYLE="per-skill" ;;
+                7)  PLATFORM="OpenCode"            ; SKILL_TARGET="$HOME/.agents/skills"                ; AGENT_TARGET="$HOME/.agents/agents"  ; LINK_STYLE="per-skill" ;;
+                8)  PLATFORM="Pi Agent"            ; SKILL_TARGET="$HOME/.agents/skills"                ; AGENT_TARGET="$HOME/.agents/agents"  ; LINK_STYLE="per-skill" ;;
+                9)  PLATFORM="Vibe CLI"            ; SKILL_TARGET="$HOME/.agents/skills"                ; AGENT_TARGET="$HOME/.agents/agents"  ; LINK_STYLE="per-skill" ;;
+                10) PLATFORM="OpenClaw"            ; SKILL_TARGET="$HOME/.openclaw/skills"              ; AGENT_TARGET=""                      ; LINK_STYLE="folder"    ;;
+                11) PLATFORM="Antigravity"         ; SKILL_TARGET="$HOME/.gemini/antigravity/skills"    ; AGENT_TARGET=""                      ; LINK_STYLE="folder"    ;;
+                12) PLATFORM="Hermes"              ; SKILL_TARGET="$HOME/.hermes/skills"                ; AGENT_TARGET=""                      ; LINK_STYLE="folder"    ;;
+            esac
+        fi
 
         if [ -n "$PLATFORM" ]; then
             echo ""
             echo "  Installing for: $PLATFORM"
-
-            # ── Check prerequisites ──
-            echo "  Checking prerequisites (Node.js, pnpm, Python3)..."
-
-            MISSING=""
-            if ! command -v node &>/dev/null; then MISSING="$MISSING Node.js"; fi
-            if ! command -v pnpm &>/dev/null; then MISSING="$MISSING pnpm"; fi
-            if ! command -v python3 &>/dev/null; then MISSING="$MISSING Python3"; fi
-
-            if [ -n "$MISSING" ]; then
-                echo ""
-                echo "  ERROR: Missing required tools:$MISSING"
-                echo ""
-                echo "  Install them first:"
-                echo "    Node.js >= 22: https://nodejs.org/"
-                echo "    pnpm >= 10:    npm install -g pnpm"
-                echo "    Python 3:      https://www.python.org/"
-                echo ""
-                echo "  Then re-run this script."
-                echo "  (Dashboard still works without the skill.)"
-            else
-                NODE_VERSION=$(node -v | sed 's/v//' | cut -d. -f1)
-                echo "  Node.js: $(node -v) | pnpm: $(pnpm -v) | Python3: $(python3 --version | cut -d' ' -f2)"
-
-                if [ "$NODE_VERSION" -lt 22 ]; then
-                    echo ""
-                    echo "  WARNING: Node.js $NODE_VERSION is too old. Need >= 22."
-                    read -p "  Continue anyway? [y/N] " CONTINUE </dev/tty
-                    if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
-                        echo "  Skipped."
-                        PLATFORM=""
-                    fi
-                fi
-            fi
-        fi
-
-        if [ -n "$PLATFORM" ] && [ -z "$MISSING" ]; then
-            # ── Install plugin root ──
             echo ""
-            echo "  Installing plugin to: $PLUGIN_DIR"
 
+            # ── Copy plugin files (just files + symlinks, no build step) ──
+            echo "  Copying plugin files to: $PLUGIN_DIR"
             rm -rf "$PLUGIN_DIR"
             cp -r "$SKILL_SOURCE" "$PLUGIN_DIR"
 
-            # Build the core package
-            echo "  Building core package..."
-            cd "$PLUGIN_DIR"
-            pnpm install --ignore-scripts --no-frozen-lockfile 2>&1 | tail -3
-            pnpm --filter @understand-anything/core build 2>&1 | tail -3
-            cd "$SCRIPT_DIR"
-
             # ── Create symlinks based on platform style ──
             if [ "$LINK_STYLE" = "per-skill" ]; then
-                # Per-skill: individual symlink for each skill
                 mkdir -p "$SKILL_TARGET"
 
                 for skill_dir in "$PLUGIN_DIR/skills/"*/; do
@@ -308,9 +269,8 @@ else
                 done
 
                 echo "  Skills linked to: $SKILL_TARGET/"
-                ls -1 "$SKILL_TARGET/" | grep understand | sed 's/^/    /'
+                ls -1 "$SKILL_TARGET/" 2>/dev/null | grep understand | sed 's/^/    /'
 
-                # Link agents if target exists
                 if [ -n "$AGENT_TARGET" ]; then
                     mkdir -p "$AGENT_TARGET"
                     for agent_file in "$PLUGIN_DIR/agents/"*.md; do
@@ -321,7 +281,6 @@ else
                 fi
 
             elif [ "$LINK_STYLE" = "folder" ]; then
-                # Folder: single symlink for entire skills directory
                 mkdir -p "$SKILL_TARGET"
                 ln -sfn "$PLUGIN_DIR/skills" "$SKILL_TARGET/understand-anything"
                 echo "  Skills linked to: $SKILL_TARGET/understand-anything"
@@ -330,7 +289,7 @@ else
             echo ""
             echo "  Skill installed for $PLATFORM."
             echo ""
-            echo "  Available commands:"
+            echo "  Available commands in your AI coding tool:"
             echo "    /understand              — Generate knowledge graph"
             echo "    /understand-dashboard    — Launch dashboard (non-Docker)"
             echo "    /understand-chat         — Ask questions about the codebase"
@@ -339,16 +298,21 @@ else
             echo "    /understand-onboard      — Generate onboarding guide"
             echo "    /understand-domain       — Extract business domain flows"
             echo "    /understand-knowledge    — Analyze knowledge bases"
+            echo ""
+            echo "  NOTE: The /understand skill will ask your AI tool to build"
+            echo "  the core package on first run if needed. This happens"
+            echo "  automatically — no manual setup required."
         fi
     else
         echo "  Skipped. You can still view dashboards generated by others."
     fi
 fi
 
-# ── Step 5: Verify ───────────────────────────────────────
+# ── Verify ───────────────────────────────────────────────
 
 echo ""
-echo "[5/5] Verifying installation..."
+echo "  Verifying installation..."
+echo ""
 
 # Check Docker image
 if docker image inspect "$DOCKER_IMAGE" &>/dev/null 2>&1; then
@@ -367,7 +331,6 @@ fi
 # Check skill
 if [ -d "$PLUGIN_DIR/skills/understand" ]; then
     echo "  Skill plugin:      installed ($PLUGIN_DIR)"
-    # Show which platforms have symlinks
     for check_dir in \
         "$HOME/.claude/skills" \
         "$HOME/.cursor/skills" \
