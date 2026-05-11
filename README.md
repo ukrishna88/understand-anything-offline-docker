@@ -34,7 +34,8 @@ All platforms get the same 8 skills and 9 agents. The installer handles the corr
 ## Prerequisites
 
 - **Docker Desktop** — [download](https://www.docker.com/products/docker-desktop/)
-- **Node.js >= 22, pnpm >= 10, Python 3** — only if installing the skill (not needed for dashboard-only)
+
+That's it. No Node.js, pnpm, or Python needed on your machine.
 
 ## Installation
 
@@ -216,5 +217,4 @@ rm -rf ~/.hermes/skills/understand-anything
 | "No knowledge-graph.json" | Run `/understand` in your AI tool, or `git pull` |
 | Port 5173 in use | `PORT=5174 understand-dashboard /path/to/repo` |
 | Stale dashboard | Refresh browser — re-reads JSON on each load |
-| Node.js too old | Upgrade to >= 22 (only needed for skill, not dashboard) |
 | `/understand` not found | Check symlinks: `ls -la ~/.claude/skills/` (or your platform path) |
