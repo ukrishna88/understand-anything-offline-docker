@@ -364,6 +364,28 @@ else
     fi
 fi
 
+# ── Start the container ───────────────────────────────────
+
+echo ""
+echo "  Starting the Docker container..."
+
+# Stop any existing container
+cd "$COMPOSE_DIR"
+docker compose down 2>/dev/null || true
+
+# Start with a dummy mount (container stays running, ready for ua-exec)
+# When user runs understand-dashboard, it restarts with the real repo
+REPO_PATH="/" docker compose up -d 2>/dev/null
+
+sleep 2
+
+if docker ps --format '{{.Names}}' | grep -q '^understand-anything$'; then
+    echo "  Container is running."
+    echo "  Pre-installed:     $(docker exec understand-anything sh -c 'echo "Node $(node -v), pnpm $(pnpm -v), Python $(python3 --version 2>&1 | cut -d" " -f2)"')"
+else
+    echo "  WARNING: Container failed to start. Check: docker logs understand-anything"
+fi
+
 # ── Verify ───────────────────────────────────────────────
 
 echo ""
@@ -371,11 +393,15 @@ echo "  Verifying installation..."
 echo ""
 
 if docker image inspect "$DOCKER_IMAGE" &>/dev/null 2>&1; then
-    echo "  Docker image:      loaded"
-    # Show what's inside the container
-    echo "  Container has:     $(docker run --rm --entrypoint sh $DOCKER_IMAGE -c 'echo "Node $(node -v), pnpm $(pnpm -v), Python $(python3 --version 2>&1 | cut -d" " -f2)"')"
+    echo "  Docker image:       loaded"
 else
-    echo "  Docker image:      MISSING"
+    echo "  Docker image:       MISSING"
+fi
+
+if docker ps --format '{{.Names}}' | grep -q '^understand-anything$'; then
+    echo "  Container:          running"
+else
+    echo "  Container:          NOT RUNNING"
 fi
 
 if [ -f "$COMPOSE_DIR/start-dashboard.sh" ]; then
@@ -391,7 +417,7 @@ else
 fi
 
 if [ -d "$PLUGIN_DIR/skills/understand" ]; then
-    echo "  Skill plugin:      installed"
+    echo "  Skill plugin:       installed"
     for check_dir in \
         "$HOME/.claude/skills" \
         "$HOME/.cursor/skills" \
@@ -402,30 +428,29 @@ if [ -d "$PLUGIN_DIR/skills/understand" ]; then
         "$HOME/.hermes/skills"; do
         if [ -L "$check_dir/understand" ] || [ -L "$check_dir/understand-anything" ]; then
             platform_name=$(echo "$check_dir" | sed "s|$HOME/\.||" | cut -d/ -f1)
-            echo "  Linked to:         $platform_name"
+            echo "  Linked to:          $platform_name"
         fi
     done
 else
-    echo "  Skill plugin:      not installed (optional — dashboard still works)"
+    echo "  Skill plugin:       not installed (optional — dashboard still works)"
 fi
 
 echo ""
 echo "======================================================"
-echo "  Installation complete!"
+echo "  Installation complete! Container is running."
 echo "======================================================"
+echo ""
+echo "  Generate a knowledge graph (in your AI coding tool):"
+echo "    /understand"
 echo ""
 echo "  View a project dashboard:"
 echo "    understand-dashboard /path/to/your/project"
 echo ""
-if [ -d "$PLUGIN_DIR/skills/understand" ]; then
-    echo "  Generate a knowledge graph (in your AI coding tool):"
-    echo "    /understand"
-    echo ""
-fi
 echo "  Run commands inside the container:"
 echo "    ua-exec node --version"
 echo "    ua-exec python3 --version"
 echo "    ua-exec pnpm --version"
 echo ""
+echo "  The container auto-restarts with Docker Desktop."
 echo "  One image, any project. Zero host dependencies."
 echo ""
