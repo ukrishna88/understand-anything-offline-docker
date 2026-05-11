@@ -140,8 +140,10 @@ if [ ! -f "$REPO_PATH/.understand-anything/knowledge-graph.json" ]; then
     exit 1
 fi
 
+# Stop any existing container (standby or previous dashboard)
+docker rm -f understand-anything 2>/dev/null || true
+
 cd "$COMPOSE_DIR"
-docker compose down 2>/dev/null || true
 REPO_PATH="$REPO_PATH" docker compose up -d
 
 echo ""
@@ -364,7 +366,7 @@ else
     fi
 fi
 
-# ── Start the container ───────────────────────────────────
+# ── Start the container in standby ────────────────────────
 
 echo ""
 echo "  Starting the Docker container..."
@@ -373,14 +375,23 @@ echo "  Starting the Docker container..."
 cd "$COMPOSE_DIR"
 docker compose down 2>/dev/null || true
 
-# Start with a dummy mount (container stays running, ready for ua-exec)
-# When user runs understand-dashboard, it restarts with the real repo
-REPO_PATH="/" docker compose up -d 2>/dev/null
+# Start in standby mode: keeps container alive without serving a dashboard.
+# The entrypoint's "dashboard" command would crash without a real repo mount,
+# so we override with a simple sleep loop that keeps the container running.
+# ua-exec works immediately. understand-dashboard restarts it with a real repo.
+docker run -d \
+    --name understand-anything \
+    --restart unless-stopped \
+    --dns 0.0.0.0 \
+    --entrypoint sh \
+    "$DOCKER_IMAGE" \
+    -c "echo 'Container ready (standby mode). Use understand-dashboard to serve a project.'; while true; do sleep 86400; done" \
+    >/dev/null 2>&1
 
 sleep 2
 
 if docker ps --format '{{.Names}}' | grep -q '^understand-anything$'; then
-    echo "  Container is running."
+    echo "  Container is running (standby mode)."
     echo "  Pre-installed:     $(docker exec understand-anything sh -c 'echo "Node $(node -v), pnpm $(pnpm -v), Python $(python3 --version 2>&1 | cut -d" " -f2)"')"
 else
     echo "  WARNING: Container failed to start. Check: docker logs understand-anything"
