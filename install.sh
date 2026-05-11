@@ -15,7 +15,7 @@ COMPOSE_DIR="$HOME/.understand-anything-docker"
 PLUGIN_DIR="$HOME/.understand-anything-plugin"
 IMAGE_FILE="understand-anything-dashboard.tar.gz"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SKILL_SOURCE="$SCRIPT_DIR/claude-skill"
+SKILL_SOURCE="$SCRIPT_DIR/plugin"
 
 echo ""
 echo "======================================================"

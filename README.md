@@ -28,7 +28,7 @@ All platforms get the same 8 skills and 9 agents. The installer handles the corr
 | Component | Purpose | Required? |
 |-----------|---------|-----------|
 | Docker image (`.tar.gz`) | Sandboxed dashboard viewer (no internet at runtime) | Yes |
-| `claude-skill/` | Complete skill + agent + core files for all platforms | Only if you generate graphs |
+| `plugin/` | Complete skill + agent + core files for all 12 platforms | Only if you generate graphs |
 | `install.sh` | Interactive installer with platform selection | Yes |
 
 ## Prerequisites
@@ -212,7 +212,7 @@ rm -rf ~/.hermes/skills/understand-anything
 | "Docker is not installed" | Install Docker Desktop and restart |
 | "Docker is not running" | Start Docker Desktop |
 | "Docker image not found" | Download `.tar.gz` from Releases, place in this directory |
-| "Skill files missing" | Re-clone this repo — `claude-skill/` should be present |
+| "Skill files missing" | Re-clone this repo — `plugin/` should be present |
 | "No knowledge-graph.json" | Run `/understand` in your AI tool, or `git pull` |
 | Port 5173 in use | `PORT=5174 understand-dashboard /path/to/repo` |
 | Stale dashboard | Refresh browser — re-reads JSON on each load |
