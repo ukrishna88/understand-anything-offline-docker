@@ -256,9 +256,10 @@ else
 
     if [[ "$INSTALL_SKILL" =~ ^[Yy]$ ]]; then
 
-        # ── Platform selection ──
+        # ── Platform selection (supports comma-separated) ──
         echo ""
-        echo "  Which AI coding tool do you use?"
+        echo "  Which AI coding tool(s) do you use?"
+        echo "  Select multiple with commas, e.g.: 1,2,5"
         echo ""
         echo "     1)  Claude Code"
         echo "     2)  Cursor"
@@ -273,16 +274,20 @@ else
         echo "    11)  Antigravity"
         echo "    12)  Hermes"
         echo ""
-        read -p "  Select [1-12] and press Enter: " PLATFORM_CHOICE </dev/tty
+        read -p "  Select [1-12, comma-separated] and press Enter: " PLATFORM_INPUT </dev/tty
 
-        # Validate input
-        if ! [[ "$PLATFORM_CHOICE" =~ ^[0-9]+$ ]] || [ "$PLATFORM_CHOICE" -lt 1 ] || [ "$PLATFORM_CHOICE" -gt 12 ]; then
-            echo ""
-            echo "  Invalid choice: '$PLATFORM_CHOICE'"
-            echo "  Skipping skill installation. Dashboard still works."
-            PLATFORM=""
-        else
-            case "$PLATFORM_CHOICE" in
+        # ── Copy plugin files once ──
+        echo ""
+        echo "  Copying plugin files to: $PLUGIN_DIR"
+        rm -rf "$PLUGIN_DIR"
+        cp -r "$SKILL_SOURCE" "$PLUGIN_DIR"
+
+        # ── Function to link a single platform ──
+        link_platform() {
+            local NUM="$1"
+            local PLATFORM="" SKILL_TARGET="" AGENT_TARGET="" LINK_STYLE=""
+
+            case "$NUM" in
                 1)  PLATFORM="Claude Code"        ; SKILL_TARGET="$HOME/.claude/skills"                ; AGENT_TARGET="$HOME/.claude/agents"  ; LINK_STYLE="per-skill" ;;
                 2)  PLATFORM="Cursor"              ; SKILL_TARGET="$HOME/.cursor/skills"                ; AGENT_TARGET="$HOME/.cursor/agents"  ; LINK_STYLE="per-skill" ;;
                 3)  PLATFORM="VS Code + Copilot"   ; SKILL_TARGET="$HOME/.copilot/skills"               ; AGENT_TARGET="$HOME/.copilot/agents" ; LINK_STYLE="per-skill" ;;
@@ -295,30 +300,17 @@ else
                 10) PLATFORM="OpenClaw"            ; SKILL_TARGET="$HOME/.openclaw/skills"              ; AGENT_TARGET=""                      ; LINK_STYLE="folder"    ;;
                 11) PLATFORM="Antigravity"         ; SKILL_TARGET="$HOME/.gemini/antigravity/skills"    ; AGENT_TARGET=""                      ; LINK_STYLE="folder"    ;;
                 12) PLATFORM="Hermes"              ; SKILL_TARGET="$HOME/.hermes/skills"                ; AGENT_TARGET=""                      ; LINK_STYLE="folder"    ;;
+                *)  echo "  Skipping invalid choice: $NUM"; return ;;
             esac
-        fi
 
-        if [ -n "$PLATFORM" ]; then
-            echo ""
-            echo "  Installing for: $PLATFORM"
-            echo ""
+            echo "  Linking: $PLATFORM → $SKILL_TARGET/"
 
-            # ── Copy plugin files ──
-            echo "  Copying plugin files to: $PLUGIN_DIR"
-            rm -rf "$PLUGIN_DIR"
-            cp -r "$SKILL_SOURCE" "$PLUGIN_DIR"
-
-            # ── Create symlinks based on platform style ──
             if [ "$LINK_STYLE" = "per-skill" ]; then
                 mkdir -p "$SKILL_TARGET"
-
                 for skill_dir in "$PLUGIN_DIR/skills/"*/; do
                     skill_name=$(basename "$skill_dir")
                     ln -sfn "$skill_dir" "$SKILL_TARGET/$skill_name"
                 done
-
-                echo "  Skills linked to: $SKILL_TARGET/"
-                ls -1 "$SKILL_TARGET/" 2>/dev/null | grep understand | sed 's/^/    /'
 
                 if [ -n "$AGENT_TARGET" ]; then
                     mkdir -p "$AGENT_TARGET"
@@ -326,17 +318,30 @@ else
                         agent_name=$(basename "$agent_file")
                         ln -sfn "$agent_file" "$AGENT_TARGET/$agent_name"
                     done
-                    echo "  Agents linked to: $AGENT_TARGET/"
                 fi
 
             elif [ "$LINK_STYLE" = "folder" ]; then
                 mkdir -p "$SKILL_TARGET"
                 ln -sfn "$PLUGIN_DIR/skills" "$SKILL_TARGET/understand-anything"
-                echo "  Skills linked to: $SKILL_TARGET/understand-anything"
             fi
+        }
 
+        # ── Process each selection ──
+        INSTALLED_COUNT=0
+        IFS=',' read -ra SELECTIONS <<< "$PLATFORM_INPUT"
+        for choice in "${SELECTIONS[@]}"; do
+            choice=$(echo "$choice" | tr -d ' ')  # trim spaces
+            if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le 12 ]; then
+                link_platform "$choice"
+                INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
+            else
+                echo "  Skipping invalid choice: '$choice'"
+            fi
+        done
+
+        if [ "$INSTALLED_COUNT" -gt 0 ]; then
             echo ""
-            echo "  Skill installed for $PLATFORM."
+            echo "  Skill installed for $INSTALLED_COUNT platform(s)."
             echo ""
             echo "  Available commands in your AI coding tool:"
             echo "    /understand              — Generate knowledge graph"
@@ -350,6 +355,9 @@ else
             echo ""
             echo "  All node/python/pnpm commands run inside the Docker"
             echo "  container — nothing extra needed on your machine."
+        else
+            echo ""
+            echo "  No valid platforms selected. Dashboard still works."
         fi
     else
         echo "  Skipped. You can still view dashboards generated by others."
