@@ -33,9 +33,16 @@ All platforms get the same 8 skills and 9 agents. The installer handles the corr
 
 ## Prerequisites
 
-- **Docker Desktop** — [download](https://www.docker.com/products/docker-desktop/)
+**To view dashboards (everyone):**
+- Docker Desktop — [download](https://www.docker.com/products/docker-desktop/)
 
-That's it. No Node.js, pnpm, or Python needed on your machine.
+**To generate knowledge graphs (one person per team):**
+- Docker Desktop
+- Node.js >= 22 — [download](https://nodejs.org/)
+- pnpm >= 10 — `npm install -g pnpm`
+- Python 3 — [download](https://www.python.org/)
+
+These are needed because `/understand` tells your AI tool (Claude, Cursor, etc.) to run commands on your machine to parse and analyze source code. The install script checks and reports what's missing.
 
 ## Installation
 
