@@ -1,0 +1,2 @@
+# Docker image (distributed via GitHub Releases, not git)
+*.tar.gz
