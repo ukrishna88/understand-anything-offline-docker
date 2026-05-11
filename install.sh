@@ -3,8 +3,10 @@ set -e
 
 # ─────────────────────────────────────────────────────────────
 # Understand Anything — Offline Installer
-# One-time setup for the sandboxed knowledge graph dashboard
-# and optional Claude Code skill
+# Sandboxed Docker dashboard + multi-platform skill installation
+# Supports: Claude Code, Cursor, VS Code Copilot, Codex,
+#           Gemini CLI, OpenCode, Pi Agent, Vibe, OpenClaw,
+#           Antigravity, Hermes
 # ─────────────────────────────────────────────────────────────
 
 DOCKER_IMAGE="understand-anything-dashboard:latest"
@@ -13,6 +15,7 @@ COMPOSE_DIR="$HOME/.understand-anything-docker"
 PLUGIN_DIR="$HOME/.understand-anything-plugin"
 IMAGE_FILE="understand-anything-dashboard.tar.gz"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_SOURCE="$SCRIPT_DIR/claude-skill"
 
 echo ""
 echo "======================================================"
@@ -124,7 +127,7 @@ if [ ! -f "$REPO_PATH/.understand-anything/knowledge-graph.json" ]; then
     echo "  No knowledge-graph.json found in: $REPO_PATH/.understand-anything/"
     echo ""
     echo "  To generate one:"
-    echo "    1. Open Claude Code in your project directory"
+    echo "    1. Open your AI coding tool in the project directory"
     echo "    2. Run: /understand"
     echo "    3. Commit the generated knowledge-graph.json"
     echo "    4. Re-run this command"
@@ -160,70 +163,91 @@ LAUNCHER
 chmod +x "$COMPOSE_DIR/start-dashboard.sh"
 
 # Install the command
-COMMAND_INSTALLED=false
 if [ -w /usr/local/bin ]; then
     ln -sf "$COMPOSE_DIR/start-dashboard.sh" /usr/local/bin/understand-dashboard
-    COMMAND_INSTALLED=true
     echo "  Command installed: understand-dashboard"
 elif [ -d "$HOME/.local/bin" ]; then
     ln -sf "$COMPOSE_DIR/start-dashboard.sh" "$HOME/.local/bin/understand-dashboard"
-    COMMAND_INSTALLED=true
     echo "  Command installed: understand-dashboard (in ~/.local/bin/)"
 else
     mkdir -p "$HOME/.local/bin"
     ln -sf "$COMPOSE_DIR/start-dashboard.sh" "$HOME/.local/bin/understand-dashboard"
-    COMMAND_INSTALLED=true
     echo "  Command installed: understand-dashboard (in ~/.local/bin/)"
     echo "  NOTE: Add ~/.local/bin to your PATH if not already there."
 fi
 
-# ── Step 4: Install Claude Code skill ────────────────────
+# ── Step 4: Install AI coding tool skill ─────────────────
 
 echo ""
-echo "[4/5] Claude Code skill setup..."
+echo "[4/5] AI coding tool skill setup..."
 echo ""
 echo "  The Docker dashboard is VIEW-ONLY."
-echo "  The Claude Code skill lets you GENERATE knowledge graphs."
+echo "  The skill lets you GENERATE knowledge graphs via /understand."
 echo ""
 echo "  Who needs this?"
 echo "    - Install if YOU will run /understand to generate graphs"
 echo "    - Skip if a teammate generates and commits them for you"
 echo ""
 
-SKILL_SOURCE="$SCRIPT_DIR/claude-skill"
-
-# Verify skill files exist in this package
+# Verify skill files exist
 if [ ! -d "$SKILL_SOURCE/skills/understand" ]; then
     echo "  ERROR: Skill files missing from this package."
     echo "  Expected at: $SKILL_SOURCE/skills/understand"
     echo ""
-    echo "  This is a packaging bug. Contact the person who shared"
-    echo "  this installer to re-download from:"
+    echo "  This is a packaging bug. Re-clone the repo from:"
     echo "  https://github.com/ukrishna88/understand-anything-offline-docker"
     echo ""
     echo "  Skipping skill installation. Dashboard will still work."
     echo ""
 else
-    SKILL_ALREADY_INSTALLED=false
-    if [ -d "$PLUGIN_DIR/skills/understand" ]; then
-        echo "  Skill already installed at: $PLUGIN_DIR"
-        SKILL_ALREADY_INSTALLED=true
-    fi
+    read -p "  Install the skill for your AI coding tool? [y/N] " INSTALL_SKILL </dev/tty
 
-    if [ "$SKILL_ALREADY_INSTALLED" = true ]; then
-        read -p "  Re-install / update? [y/N] " REINSTALL
-        if [[ ! "$REINSTALL" =~ ^[Yy]$ ]]; then
-            echo "  Keeping existing installation."
-        else
-            SKILL_ALREADY_INSTALLED=false
-        fi
-    fi
+    if [[ "$INSTALL_SKILL" =~ ^[Yy]$ ]]; then
 
-    if [ "$SKILL_ALREADY_INSTALLED" = false ]; then
-        read -p "  Install Claude Code skill? [y/N] " INSTALL_SKILL
+        # ── Platform selection ──
+        echo ""
+        echo "  Which AI coding tool do you use?"
+        echo ""
+        echo "    1)  Claude Code"
+        echo "    2)  Cursor"
+        echo "    3)  VS Code + GitHub Copilot"
+        echo "    4)  Copilot CLI"
+        echo "    5)  Codex"
+        echo "    6)  Gemini CLI"
+        echo "    7)  OpenCode"
+        echo "    8)  Pi Agent"
+        echo "    9)  Vibe CLI"
+        echo "    10) OpenClaw"
+        echo "    11) Antigravity"
+        echo "    12) Hermes"
+        echo ""
+        read -p "  Select [1-12]: " PLATFORM_CHOICE </dev/tty
 
-        if [[ "$INSTALL_SKILL" =~ ^[Yy]$ ]]; then
+        case "$PLATFORM_CHOICE" in
+            1)  PLATFORM="claude"     ; SKILL_TARGET="$HOME/.claude/skills"     ; AGENT_TARGET="$HOME/.claude/agents"     ; LINK_STYLE="per-skill" ;;
+            2)  PLATFORM="cursor"     ; SKILL_TARGET="$HOME/.cursor/skills"     ; AGENT_TARGET="$HOME/.cursor/agents"     ; LINK_STYLE="per-skill" ;;
+            3)  PLATFORM="vscode"     ; SKILL_TARGET="$HOME/.copilot/skills"    ; AGENT_TARGET="$HOME/.copilot/agents"    ; LINK_STYLE="per-skill" ;;
+            4)  PLATFORM="copilot"    ; SKILL_TARGET="$HOME/.copilot/skills"    ; AGENT_TARGET="$HOME/.copilot/agents"    ; LINK_STYLE="per-skill" ;;
+            5)  PLATFORM="codex"      ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
+            6)  PLATFORM="gemini"     ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
+            7)  PLATFORM="opencode"   ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
+            8)  PLATFORM="pi"         ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
+            9)  PLATFORM="vibe"       ; SKILL_TARGET="$HOME/.agents/skills"     ; AGENT_TARGET="$HOME/.agents/agents"     ; LINK_STYLE="per-skill" ;;
+            10) PLATFORM="openclaw"   ; SKILL_TARGET="$HOME/.openclaw/skills"   ; AGENT_TARGET=""                         ; LINK_STYLE="folder"    ;;
+            11) PLATFORM="antigravity"; SKILL_TARGET="$HOME/.gemini/antigravity/skills"; AGENT_TARGET=""                  ; LINK_STYLE="folder"    ;;
+            12) PLATFORM="hermes"     ; SKILL_TARGET="$HOME/.hermes/skills"     ; AGENT_TARGET=""                         ; LINK_STYLE="folder"    ;;
+            *)
+                echo "  Invalid choice. Skipping skill installation."
+                echo "  Dashboard still works for viewing."
+                PLATFORM=""
+                ;;
+        esac
+
+        if [ -n "$PLATFORM" ]; then
             echo ""
+            echo "  Installing for: $PLATFORM"
+
+            # ── Check prerequisites ──
             echo "  Checking prerequisites (Node.js, pnpm, Python3)..."
 
             MISSING=""
@@ -244,66 +268,80 @@ else
                 echo "  (Dashboard still works without the skill.)"
             else
                 NODE_VERSION=$(node -v | sed 's/v//' | cut -d. -f1)
-                echo "  Node.js: v$(node -v | sed 's/v//') (need >= 22)"
-                echo "  pnpm: $(pnpm -v)"
-                echo "  Python3: $(python3 --version | cut -d' ' -f2)"
+                echo "  Node.js: $(node -v) | pnpm: $(pnpm -v) | Python3: $(python3 --version | cut -d' ' -f2)"
 
                 if [ "$NODE_VERSION" -lt 22 ]; then
                     echo ""
                     echo "  WARNING: Node.js $NODE_VERSION is too old. Need >= 22."
-                    echo "  The skill may not work correctly."
-                    echo ""
-                    read -p "  Continue anyway? [y/N] " CONTINUE
+                    read -p "  Continue anyway? [y/N] " CONTINUE </dev/tty
                     if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
-                        echo "  Skipped. Dashboard still works."
+                        echo "  Skipped."
+                        PLATFORM=""
                     fi
                 fi
+            fi
+        fi
 
-                echo ""
-                echo "  Installing plugin to: $PLUGIN_DIR"
+        if [ -n "$PLATFORM" ] && [ -z "$MISSING" ]; then
+            # ── Install plugin root ──
+            echo ""
+            echo "  Installing plugin to: $PLUGIN_DIR"
 
-                # Copy the full plugin structure
-                rm -rf "$PLUGIN_DIR"
-                cp -r "$SKILL_SOURCE" "$PLUGIN_DIR"
+            rm -rf "$PLUGIN_DIR"
+            cp -r "$SKILL_SOURCE" "$PLUGIN_DIR"
 
-                # Build the core package
-                echo "  Building core package..."
-                cd "$PLUGIN_DIR"
-                pnpm install --ignore-scripts --no-frozen-lockfile 2>&1 | tail -3
-                pnpm --filter @understand-anything/core build 2>&1 | tail -3
+            # Build the core package
+            echo "  Building core package..."
+            cd "$PLUGIN_DIR"
+            pnpm install --ignore-scripts --no-frozen-lockfile 2>&1 | tail -3
+            pnpm --filter @understand-anything/core build 2>&1 | tail -3
+            cd "$SCRIPT_DIR"
 
-                # Create symlinks for Claude Code
-                mkdir -p "$HOME/.claude/skills"
+            # ── Create symlinks based on platform style ──
+            if [ "$LINK_STYLE" = "per-skill" ]; then
+                # Per-skill: individual symlink for each skill
+                mkdir -p "$SKILL_TARGET"
 
-                # Link each skill
                 for skill_dir in "$PLUGIN_DIR/skills/"*/; do
                     skill_name=$(basename "$skill_dir")
-                    ln -sf "$skill_dir" "$HOME/.claude/skills/$skill_name"
+                    ln -sfn "$skill_dir" "$SKILL_TARGET/$skill_name"
                 done
 
-                # Link agents
-                mkdir -p "$HOME/.claude/agents"
-                for agent_file in "$PLUGIN_DIR/agents/"*.md; do
-                    agent_name=$(basename "$agent_file")
-                    ln -sf "$agent_file" "$HOME/.claude/agents/$agent_name"
-                done
+                echo "  Skills linked to: $SKILL_TARGET/"
+                ls -1 "$SKILL_TARGET/" | grep understand | sed 's/^/    /'
 
-                echo ""
-                echo "  Skill installed."
-                echo "  Skills linked to: ~/.claude/skills/"
-                echo "  Agents linked to: ~/.claude/agents/"
-                echo ""
-                echo "  Available commands in Claude Code:"
-                echo "    /understand            — Generate knowledge graph"
-                echo "    /understand-dashboard   — Launch dashboard (non-Docker)"
-                echo "    /understand-chat        — Ask questions about the graph"
-                echo "    /understand-diff        — Analyze git diffs"
-                echo "    /understand-explain     — Deep-dive a file or function"
-                echo "    /understand-onboard     — Generate onboarding guide"
+                # Link agents if target exists
+                if [ -n "$AGENT_TARGET" ]; then
+                    mkdir -p "$AGENT_TARGET"
+                    for agent_file in "$PLUGIN_DIR/agents/"*.md; do
+                        agent_name=$(basename "$agent_file")
+                        ln -sfn "$agent_file" "$AGENT_TARGET/$agent_name"
+                    done
+                    echo "  Agents linked to: $AGENT_TARGET/"
+                fi
+
+            elif [ "$LINK_STYLE" = "folder" ]; then
+                # Folder: single symlink for entire skills directory
+                mkdir -p "$SKILL_TARGET"
+                ln -sfn "$PLUGIN_DIR/skills" "$SKILL_TARGET/understand-anything"
+                echo "  Skills linked to: $SKILL_TARGET/understand-anything"
             fi
-        else
-            echo "  Skipped. You can still view dashboards generated by others."
+
+            echo ""
+            echo "  Skill installed for $PLATFORM."
+            echo ""
+            echo "  Available commands:"
+            echo "    /understand              — Generate knowledge graph"
+            echo "    /understand-dashboard    — Launch dashboard (non-Docker)"
+            echo "    /understand-chat         — Ask questions about the codebase"
+            echo "    /understand-diff         — Analyze git diffs"
+            echo "    /understand-explain      — Deep-dive a file or function"
+            echo "    /understand-onboard      — Generate onboarding guide"
+            echo "    /understand-domain       — Extract business domain flows"
+            echo "    /understand-knowledge    — Analyze knowledge bases"
         fi
+    else
+        echo "  Skipped. You can still view dashboards generated by others."
     fi
 fi
 
@@ -312,47 +350,53 @@ fi
 echo ""
 echo "[5/5] Verifying installation..."
 
-CHECKS_PASSED=true
-
 # Check Docker image
 if docker image inspect "$DOCKER_IMAGE" &>/dev/null 2>&1; then
-    echo "  Docker image: loaded"
+    echo "  Docker image:      loaded"
 else
-    echo "  Docker image: MISSING"
-    CHECKS_PASSED=false
+    echo "  Docker image:      MISSING"
 fi
 
 # Check launcher
 if [ -f "$COMPOSE_DIR/start-dashboard.sh" ]; then
-    echo "  Dashboard launcher: installed"
+    echo "  Dashboard command:  installed"
 else
-    echo "  Dashboard launcher: MISSING"
-    CHECKS_PASSED=false
+    echo "  Dashboard command:  MISSING"
 fi
 
-# Check skill (optional)
-if [ -d "$HOME/.claude/skills/understand" ]; then
-    echo "  Claude Code skill: installed"
+# Check skill
+if [ -d "$PLUGIN_DIR/skills/understand" ]; then
+    echo "  Skill plugin:      installed ($PLUGIN_DIR)"
+    # Show which platforms have symlinks
+    for check_dir in \
+        "$HOME/.claude/skills" \
+        "$HOME/.cursor/skills" \
+        "$HOME/.copilot/skills" \
+        "$HOME/.agents/skills" \
+        "$HOME/.openclaw/skills" \
+        "$HOME/.gemini/antigravity/skills" \
+        "$HOME/.hermes/skills"; do
+        if [ -L "$check_dir/understand" ] || [ -L "$check_dir/understand-anything" ]; then
+            platform_name=$(echo "$check_dir" | sed "s|$HOME/\.||" | cut -d/ -f1)
+            echo "  Linked to:         $platform_name"
+        fi
+    done
 else
-    echo "  Claude Code skill: not installed (optional)"
+    echo "  Skill plugin:      not installed (optional — dashboard still works)"
 fi
 
 echo ""
 echo "======================================================"
-if [ "$CHECKS_PASSED" = true ]; then
-    echo "  Installation complete!"
-else
-    echo "  Installation completed with warnings (see above)"
-fi
+echo "  Installation complete!"
 echo "======================================================"
 echo ""
 echo "  View a project dashboard:"
 echo "    understand-dashboard /path/to/your/project"
 echo ""
-if [ -d "$HOME/.claude/skills/understand" ]; then
-    echo "  Generate a knowledge graph (in Claude Code):"
+if [ -d "$PLUGIN_DIR/skills/understand" ]; then
+    echo "  Generate a knowledge graph (in your AI coding tool):"
     echo "    /understand"
     echo ""
 fi
-echo "  Works with any project. Switch repos anytime."
+echo "  One image, any project. Switch repos anytime."
 echo ""
